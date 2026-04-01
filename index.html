@@ -1,0 +1,1165 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>智能排班工具 - 在线版</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        .header h1 { font-size: 2.5em; margin-bottom: 10px; }
+        .header p { opacity: 0.9; font-size: 1.1em; }
+        .main-content { padding: 30px; }
+        .section {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 25px;
+            border: 1px solid #e9ecef;
+        }
+        .section-title {
+            font-size: 1.4em;
+            color: #495057;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 3px solid #667eea;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 10px;
+            font-size: 1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+        }
+        .btn-secondary { background: #6c757d; color: white; }
+        .btn-success { background: #28a745; color: white; }
+        .btn-danger { background: #dc3545; color: white; }
+        .btn-sm { padding: 8px 16px; font-size: 0.9em; }
+
+        /* 智能偏好输入区域 */
+        .smart-preference-section {
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 25px;
+            border: 2px solid #667eea;
+        }
+
+        .staff-preference-card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 15px;
+            border: 1px solid #dee2e6;
+            transition: all 0.3s;
+        }
+
+        .staff-preference-card:hover {
+            border-color: #667eea;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
+        }
+
+        .staff-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #f8f9fa;
+        }
+
+        .staff-name {
+            font-size: 1.2em;
+            font-weight: 600;
+            color: #495057;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .staff-group-tag {
+            background: #667eea;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.8em;
+        }
+
+        .preference-textarea {
+            width: 100%;
+            min-height: 80px;
+            padding: 15px;
+            border: 2px solid #dee2e6;
+            border-radius: 10px;
+            font-size: 1em;
+            resize: vertical;
+            transition: all 0.3s;
+        }
+
+        .preference-textarea:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .preference-hints {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 10px;
+        }
+
+        .hint-tag {
+            background: #e7e9ff;
+            color: #667eea;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.85em;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 1px solid transparent;
+        }
+
+        .hint-tag:hover {
+            background: #667eea;
+            color: white;
+        }
+
+        .parsed-result {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 12px 15px;
+            margin-top: 12px;
+            border-left: 4px solid #51cf66;
+        }
+
+        .parsed-result.error {
+            border-left-color: #ff6b6b;
+        }
+
+        .parsed-result h5 {
+            color: #495057;
+            font-size: 0.9em;
+            margin-bottom: 8px;
+        }
+
+        .parsed-items {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+
+        .parsed-item {
+            background: white;
+            padding: 4px 10px;
+            border-radius: 15px;
+            font-size: 0.85em;
+            color: #495057;
+            border: 1px solid #dee2e6;
+        }
+
+        /* 示例区域 */
+        .examples-section {
+            background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 25px;
+            border: 1px solid #ffc107;
+        }
+
+        .examples-section h3 {
+            color: #856404;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .example-item {
+            background: white;
+            padding: 10px 15px;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 1px solid transparent;
+        }
+
+        .example-item:hover {
+            border-color: #ffc107;
+            transform: translateX(5px);
+        }
+
+        .example-item strong {
+            color: #667eea;
+        }
+
+        /* 其他样式保持 */
+        .form-row { display: flex; gap: 20px; flex-wrap: wrap; margin-bottom: 15px; }
+        .form-group { flex: 1; min-width: 200px; }
+        .form-group label { display: block; margin-bottom: 8px; color: #495057; font-weight: 600; }
+        .form-group input, .form-group select {
+            width: 100%; padding: 12px 15px; border: 2px solid #dee2e6;
+            border-radius: 10px; font-size: 1em; transition: all 0.3s;
+        }
+        .shift-config-list { display: flex; flex-direction: column; gap: 15px; }
+        .shift-item {
+            background: white; border-radius: 12px; padding: 20px;
+            border: 2px solid #e9ecef; display: flex; gap: 15px; align-items: center; flex-wrap: wrap;
+        }
+        .shift-color { width: 40px; height: 40px; border-radius: 10px; border: none; cursor: pointer; }
+        .shift-input { flex: 1; min-width: 150px; }
+        .staff-section { display: grid; grid-template-columns: 1fr 2fr; gap: 20px; }
+        @media (max-width: 768px) { .staff-section { grid-template-columns: 1fr; } }
+        .group-list { background: white; border-radius: 12px; padding: 20px; max-height: 500px; overflow-y: auto; }
+        .group-item {
+            background: #f8f9fa; border-radius: 10px; padding: 15px;
+            margin-bottom: 15px; border: 2px solid transparent; cursor: pointer; transition: all 0.3s;
+        }
+        .group-item:hover, .group-item.active { border-color: #667eea; background: #e7e9ff; }
+        .staff-list { display: flex; flex-wrap: wrap; gap: 10px; margin: 15px 0; }
+        .staff-tag {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white; padding: 8px 15px; border-radius: 20px;
+            font-size: 0.9em; display: flex; align-items: center; gap: 8px;
+        }
+        .add-staff-form { display: flex; gap: 10px; margin-top: 15px; }
+        .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; margin-top: 15px; }
+        .calendar-day {
+            aspect-ratio: 1; display: flex; flex-direction: column;
+            align-items: center; justify-content: center; border: 2px solid #dee2e6;
+            border-radius: 10px; cursor: pointer; transition: all 0.3s; font-weight: 600;
+        }
+        .calendar-day:hover { border-color: #667eea; background: #e7e9ff; }
+        .calendar-day.selected { background: #667eea; color: white; border-color: #667eea; }
+        .schedule-result { overflow-x: auto; margin-top: 20px; }
+        .schedule-table { width: 100%; border-collapse: collapse; font-size: 0.85em; }
+        .schedule-table th, .schedule-table td {
+            border: 1px solid #dee2e6; padding: 8px; text-align: center; min-width: 40px;
+        }
+        .schedule-table th { background: #667eea; color: white; font-weight: 600; position: sticky; top: 0; }
+        .shift-早7 { background: #4dabf7; color: white; }
+        .shift-早班 { background: #51cf66; color: white; }
+        .shift-中班 { background: #ffd43b; color: #000; }
+        .shift-晚班 { background: #9775fa; color: white; }
+        .shift-休 { background: #adb5bd; color: white; }
+        .action-bar { display: flex; gap: 15px; justify-content: center; padding: 25px; background: #f8f9fa; flex-wrap: wrap; }
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+                 background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center; }
+        .modal.active { display: flex; }
+        .modal-content { background: white; border-radius: 20px; padding: 30px; max-width: 95%; width: 95%; max-height: 90vh; overflow-y: auto; }
+        .loading { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+                   background: rgba(255,255,255,0.9); z-index: 2000; justify-content: center; align-items: center; flex-direction: column; }
+        .loading.active { display: flex; }
+        .spinner { width: 60px; height: 60px; border: 4px solid #e9ecef; border-top-color: #667eea;
+                   border-radius: 50%; animation: spin 1s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>智能排班工具</h1>
+            <p>用文字描述排班偏好，AI自动解析安排</p>
+        </div>
+
+        <div class="main-content">
+            <!-- 基本信息 -->
+            <div class="section">
+                <h2 class="section-title"><span class="icon">📅</span>基本信息</h2>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>排班年份</label>
+                        <select id="year">
+                            <option value="2025">2025年</option>
+                            <option value="2026" selected>2026年</option>
+                            <option value="2027">2027年</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>排班月份</label>
+                        <select id="month">
+                            <option value="1">1月</option><option value="2">2月</option><option value="3">3月</option>
+                            <option value="4" selected>4月</option><option value="5">5月</option><option value="6">6月</option>
+                            <option value="7">7月</option><option value="8">8月</option><option value="9">9月</option>
+                            <option value="10">10月</option><option value="11">11月</option><option value="12">12月</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>目标出勤率 (%)</label>
+                        <input type="number" id="attendanceRate" value="72" min="50" max="100">
+                    </div>
+                </div>
+            </div>
+
+            <!-- 班次配置 -->
+            <div class="section">
+                <h2 class="section-title"><span class="icon">⏰</span>班次配置</h2>
+                <div class="shift-config-list" id="shiftConfigList"></div>
+                <div style="margin-top: 15px;">
+                    <button class="btn btn-secondary btn-sm" onclick="addShift()">+ 添加班次</button>
+                </div>
+            </div>
+
+            <!-- 人员管理 -->
+            <div class="section">
+                <h2 class="section-title"><span class="icon">👥</span>人员管理</h2>
+                <div class="staff-section">
+                    <div>
+                        <h4 style="margin-bottom: 15px; color: #495057;">组别列表</h4>
+                        <div class="group-list" id="groupList"></div>
+                        <div style="margin-top: 15px;">
+                            <button class="btn btn-secondary btn-sm" onclick="addGroup()">+ 添加组别</button>
+                        </div>
+                    </div>
+                    <div style="background: white; border-radius: 12px; padding: 20px;">
+                        <h4 style="margin-bottom: 15px; color: #495057;" id="currentGroupName">请选择组别</h4>
+                        <div class="staff-list" id="staffList"></div>
+                        <div class="add-staff-form" id="addStaffForm" style="display: none;">
+                            <input type="text" id="newStaffName" placeholder="输入人员姓名">
+                            <button class="btn btn-primary" onclick="addStaff()">添加</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 示例说明 -->
+            <div class="examples-section">
+                <h3>💡 文字描述示例（点击可直接使用）</h3>
+                <div class="example-item" onclick="useExample('希望每周一固定休息，周末尽量不排班')">
+                    <strong>休息日偏好：</strong>希望每周一固定休息，周末尽量不排班
+                </div>
+                <div class="example-item" onclick="useExample('喜欢早班和早7，不喜欢晚班，中班可以接受')">
+                    <strong>班次偏好：</strong>喜欢早班和早7，不喜欢晚班，中班可以接受
+                </div>
+                <div class="example-item" onclick="useExample('4月5日清明节必须休息，五一期间 prefer 上班')">
+                    <strong>特殊日期：</strong>4月5日清明节必须休息，五一期间 prefer 上班
+                </div>
+                <div class="example-item" onclick="useExample('希望和张三一起休息，可以连休2天')">
+                    <strong>同事协调：</strong>希望和张三一起休息，可以连休2天
+                </div>
+                <div class="example-item" onclick="useExample('尽量少用年假，年假只用于紧急请假')">
+                    <strong>年假使用：</strong>尽量少用年假，年假只用于紧急请假
+                </div>
+                <div class="example-item" onclick="useExample('最多连续工作5天，需要保证每周至少1天连休')">
+                    <strong>工作强度：</strong>最多连续工作5天，需要保证每周至少1天连休
+                </div>
+            </div>
+
+            <!-- 智能排班偏好 -->
+            <div class="smart-preference-section">
+                <h2 class="section-title"><span class="icon">📝</span>智能排班偏好（文字描述）</h2>
+                <p style="color: #6c757d; margin-bottom: 20px;">
+                    用自然语言描述每个人的排班偏好，系统会自动解析。支持：休息日、班次偏好、特殊日期、同事协调、年假使用等。
+                </p>
+                <div id="smartPreferencesList"></div>
+            </div>
+
+            <!-- 假期设置 -->
+            <div class="section">
+                <h2 class="section-title"><span class="icon">🎉</span>假期设置</h2>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>假期名称</label>
+                        <input type="text" id="holidayName" placeholder="如：清明节、五一劳动节">
+                    </div>
+                    <div class="form-group">
+                        <label>假期类型</label>
+                        <select id="holidayType">
+                            <option value="rest">优先休息</option>
+                            <option value="work">必须上班</option>
+                            <option value="normal">正常排班</option>
+                        </select>
+                    </div>
+                </div>
+                <h4 style="margin: 20px 0 15px; color: #495057;">选择假期日期：</h4>
+                <div class="calendar-grid" id="holidaysGrid"></div>
+                <div style="margin-top: 15px;">
+                    <button class="btn btn-primary" onclick="addHoliday()">添加假期</button>
+                </div>
+                <div id="holidaysList" style="margin-top: 20px;"></div>
+            </div>
+        </div>
+
+        <div class="action-bar">
+            <button class="btn btn-secondary" onclick="saveConfig()">💾 保存配置</button>
+            <button class="btn btn-secondary" onclick="loadConfig()">📂 加载配置</button>
+            <button class="btn btn-primary" onclick="generateSchedule()">⚡ 生成排班表</button>
+        </div>
+    </div>
+
+    <div class="modal" id="resultModal">
+        <div class="modal-content">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h3>排班结果</h3>
+                <span style="font-size: 1.5em; cursor: pointer;" onclick="closeModal()">&times;</span>
+            </div>
+            <div class="schedule-result" id="scheduleResult"></div>
+            <div style="margin-top: 20px; text-align: center;">
+                <button class="btn btn-success" onclick="exportToExcel()">📊 导出Excel</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="loading" id="loading">
+        <div class="spinner"></div>
+        <p>正在生成排班表，请稍候...</p>
+    </div>
+
+    <script>
+        let config = {
+            year: 2026, month: 4, attendanceRate: 72,
+            shifts: [
+                { name: '早7', time: '07:00-16:00', color: '#4dabf7', minStaff: 1 },
+                { name: '早班', time: '08:00-17:00', color: '#51cf66', minStaff: 1 },
+                { name: '中班', time: '13:00-22:00', color: '#ffd43b', minStaff: 1 },
+                { name: '晚班', time: '15:00-24:00', color: '#9775fa', minStaff: 1 }
+            ],
+            groups: [],
+            staffPreferences: {},
+            holidays: []
+        };
+
+        let currentGroup = null;
+        let currentSchedule = null;
+        let selectedHolidayDates = [];
+
+        document.addEventListener('DOMContentLoaded', function() {
+            renderShiftConfig();
+            renderGroupList();
+            initCalendar();
+            renderHolidaysList();
+        });
+
+        // 班次配置
+        function renderShiftConfig() {
+            const container = document.getElementById('shiftConfigList');
+            container.innerHTML = config.shifts.map((shift, index) => `
+                <div class="shift-item">
+                    <input type="color" class="shift-color" value="${shift.color}" onchange="updateShift(${index}, 'color', this.value)">
+                    <div class="shift-input">
+                        <label>班次名称</label>
+                        <input type="text" value="${shift.name}" onchange="updateShift(${index}, 'name', this.value)">
+                    </div>
+                    <div class="shift-input">
+                        <label>时间段</label>
+                        <input type="text" value="${shift.time}" onchange="updateShift(${index}, 'time', this.value)">
+                    </div>
+                    <button class="btn btn-danger btn-sm" onclick="removeShift(${index})" ${config.shifts.length <= 1 ? 'disabled' : ''}>删除</button>
+                </div>
+            `).join('');
+        }
+
+        function updateShift(index, field, value) { config.shifts[index][field] = value; }
+        function addShift() {
+            config.shifts.push({ name: '新班次', time: '09:00-18:00', color: '#adb5bd', minStaff: 1 });
+            renderShiftConfig();
+        }
+        function removeShift(index) {
+            if (config.shifts.length > 1) { config.shifts.splice(index, 1); renderShiftConfig(); }
+        }
+
+        // 人员管理
+        function renderGroupList() {
+            const container = document.getElementById('groupList');
+            if (config.groups.length === 0) {
+                container.innerHTML = '<p style="color: #6c757d; text-align: center;">暂无组别</p>';
+                return;
+            }
+            container.innerHTML = config.groups.map((group, index) => `
+                <div class="group-item ${currentGroup === index ? 'active' : ''}" onclick="selectGroup(${index})">
+                    <h4>${group.name}</h4>
+                    <p style="font-size: 0.9em; color: #6c757d;">${group.staff.length} 人</p>
+                </div>
+            `).join('');
+        }
+
+        function addGroup() {
+            const name = prompt('请输入组别名称：', `组别${config.groups.length + 1}`);
+            if (name) {
+                config.groups.push({ name, staff: [] });
+                renderGroupList();
+                selectGroup(config.groups.length - 1);
+            }
+        }
+
+        function selectGroup(index) {
+            currentGroup = index;
+            renderGroupList();
+            renderStaffList();
+            renderSmartPreferences();
+        }
+
+        function renderStaffList() {
+            const container = document.getElementById('staffList');
+            const form = document.getElementById('addStaffForm');
+            const groupName = document.getElementById('currentGroupName');
+
+            if (currentGroup === null) {
+                container.innerHTML = '';
+                form.style.display = 'none';
+                groupName.textContent = '请选择组别';
+                return;
+            }
+
+            const group = config.groups[currentGroup];
+            groupName.textContent = group.name;
+            form.style.display = 'flex';
+
+            if (group.staff.length === 0) {
+                container.innerHTML = '<p style="color: #6c757d; width: 100%;">暂无人员</p>';
+            } else {
+                container.innerHTML = group.staff.map((staff, index) => `
+                    <div class="staff-tag">
+                        ${staff}
+                        <span style="cursor: pointer; opacity: 0.7;" onclick="removeStaff(${index})">&times;</span>
+                    </div>
+                `).join('');
+            }
+        }
+
+        function addStaff() {
+            const input = document.getElementById('newStaffName');
+            const name = input.value.trim();
+            if (name && currentGroup !== null) {
+                config.groups[currentGroup].staff.push(name);
+                config.staffPreferences[name] = '';
+                input.value = '';
+                renderStaffList();
+                renderGroupList();
+                renderSmartPreferences();
+            }
+        }
+
+        function removeStaff(index) {
+            if (currentGroup !== null) {
+                const staffName = config.groups[currentGroup].staff[index];
+                config.groups[currentGroup].staff.splice(index, 1);
+                delete config.staffPreferences[staffName];
+                renderStaffList();
+                renderGroupList();
+                renderSmartPreferences();
+            }
+        }
+
+        function getAllStaff() {
+            return config.groups.flatMap(g => g.staff);
+        }
+
+        // 智能偏好输入
+        function renderSmartPreferences() {
+            const container = document.getElementById('smartPreferencesList');
+            const allStaff = getAllStaff();
+
+            if (allStaff.length === 0) {
+                container.innerHTML = '<p style="color: #6c757d; text-align: center; padding: 40px;">请先添加人员</p>';
+                return;
+            }
+
+            container.innerHTML = allStaff.map(staff => {
+                const group = config.groups.find(g => g.staff.includes(staff));
+                const preference = config.staffPreferences[staff] || '';
+                const parsed = parsePreferenceText(preference, staff);
+
+                return `
+                    <div class="staff-preference-card">
+                        <div class="staff-header">
+                            <div class="staff-name">
+                                👤 ${staff}
+                                <span class="staff-group-tag">${group ? group.name : ''}</span>
+                            </div>
+                        </div>
+                        <textarea class="preference-textarea"
+                                  placeholder="描述排班偏好，例如：希望每周一固定休息，喜欢早班不喜欢晚班..."
+                                  oninput="updatePreference('${staff}', this.value)">${preference}</textarea>
+                        <div class="preference-hints">
+                            <span class="hint-tag" onclick="addHint('${staff}', '每周一休息')">每周一休息</span>
+                            <span class="hint-tag" onclick="addHint('${staff}', '喜欢早班')">喜欢早班</span>
+                            <span class="hint-tag" onclick="addHint('${staff}', '不喜欢晚班')">不喜欢晚班</span>
+                            <span class="hint-tag" onclick="addHint('${staff}', '周末尽量不排班')">周末尽量不排班</span>
+                            <span class="hint-tag" onclick="addHint('${staff}', '希望连休2天')">希望连休2天</span>
+                            <span class="hint-tag" onclick="addHint('${staff}', '少用年假')">少用年假</span>
+                        </div>
+                        ${parsed.hasData ? `
+                            <div class="parsed-result">
+                                <h5>🤖 已解析的偏好：</h5>
+                                <div class="parsed-items">
+                                    ${parsed.items.map(item => `<span class="parsed-item">${item}</span>`).join('')}
+                                </div>
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function updatePreference(staff, value) {
+            config.staffPreferences[staff] = value;
+            // 重新渲染以显示解析结果
+            renderSmartPreferences();
+        }
+
+        function addHint(staff, hint) {
+            const current = config.staffPreferences[staff] || '';
+            const separator = current ? '，' : '';
+            config.staffPreferences[staff] = current + separator + hint;
+            renderSmartPreferences();
+        }
+
+        function useExample(text) {
+            const allStaff = getAllStaff();
+            if (allStaff.length === 0) {
+                alert('请先添加人员');
+                return;
+            }
+            // 找到第一个没有设置偏好的人员
+            const staff = allStaff.find(s => !config.staffPreferences[s]) || allStaff[0];
+            config.staffPreferences[staff] = text;
+            renderSmartPreferences();
+        }
+
+        // 解析偏好文本
+        function parsePreferenceText(text, staffName) {
+            const items = [];
+            const lowerText = text.toLowerCase();
+
+            // 解析休息日偏好
+            const weekDays = {'一': 1, '二': 2, '三': 3, '四': 4, '五': 5, '六': 6, '日': 0, '天': 0};
+            for (let [day, num] of Object.entries(weekDays)) {
+                if (lowerText.includes(`周${day}`) || lowerText.includes(`星期${day}`)) {
+                    if (lowerText.includes('休息') || lowerText.includes('休')) {
+                        items.push(`周${day}固定休息`);
+                    }
+                }
+            }
+
+            // 解析周末偏好
+            if (lowerText.includes('周末') && (lowerText.includes('不排') || lowerText.includes('休息'))) {
+                items.push('周末优先休息');
+            }
+            if (lowerText.includes('周末') && lowerText.includes('上班')) {
+                items.push('周末可排班');
+            }
+
+            // 解析班次偏好
+            const shiftKeywords = {
+                '早7': ['早7', '早七'],
+                '早班': ['早班', '早'],
+                '中班': ['中班', '中'],
+                '晚班': ['晚班', '晚']
+            };
+
+            for (let [shift, keywords] of Object.entries(shiftKeywords)) {
+                for (let keyword of keywords) {
+                    if (lowerText.includes(keyword)) {
+                        if (lowerText.includes('喜欢') || lowerText.includes('爱') || lowerText.includes('prefer')) {
+                            items.push(`喜欢${shift}`);
+                        } else if (lowerText.includes('不喜欢') || lowerText.includes('讨厌') || lowerText.includes('不')) {
+                            items.push(`不喜欢${shift}`);
+                        }
+                        break;
+                    }
+                }
+            }
+
+            // 解析连休偏好
+            const restMatch = text.match(/连休(\d+)/);
+            if (restMatch) {
+                items.push(`希望连休${restMatch[1]}天`);
+            }
+
+            // 解析连续工作限制
+            const workMatch = text.match(/连续工作(\d+)/) || text.match(/最多.*工作(\d+)/);
+            if (workMatch) {
+                items.push(`最多连续工作${workMatch[1]}天`);
+            }
+
+            // 解析年假偏好
+            if (lowerText.includes('年假') && (lowerText.includes('少') || lowerText.includes('不'))) {
+                items.push('尽量少用年假');
+            }
+
+            // 解析同事协调
+            const allStaff = getAllStaff();
+            for (let other of allStaff) {
+                if (other !== staffName && lowerText.includes(other)) {
+                    if (lowerText.includes('一起') || lowerText.includes('同时')) {
+                        items.push(`希望和${other}一起休息`);
+                    }
+                }
+            }
+
+            // 解析特殊日期
+            const dateMatch = text.match(/(\d{1,2})月(\d{1,2})日/);
+            if (dateMatch) {
+                const month = dateMatch[1];
+                const day = dateMatch[2];
+                if (lowerText.includes('休息') || lowerText.includes('休')) {
+                    items.push(`${month}月${day}日必须休息`);
+                } else if (lowerText.includes('上班') || lowerText.includes('班')) {
+                    items.push(`${month}月${day}日必须上班`);
+                }
+            }
+
+            return { hasData: items.length > 0, items };
+        }
+
+        // 日历
+        function initCalendar() {
+            renderCalendar('holidaysGrid');
+        }
+
+        function renderCalendar(containerId) {
+            const container = document.getElementById(containerId);
+            const year = parseInt(document.getElementById('year').value);
+            const month = parseInt(document.getElementById('month').value);
+            const daysInMonth = new Date(year, month, 0).getDate();
+            const weekDays = ['日', '一', '二', '三', '四', '五', '六'];
+            const firstDayWeek = new Date(year, month - 1, 1).getDay();
+
+            let html = '';
+            weekDays.forEach(day => {
+                html += `<div style="text-align: center; font-weight: bold; color: #495057; padding: 10px;">${day}</div>`;
+            });
+            for (let i = 0; i < firstDayWeek; i++) html += '<div></div>';
+
+            for (let day = 1; day <= daysInMonth; day++) {
+                const date = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                const weekDay = new Date(year, month - 1, day).getDay();
+                const isWeekend = weekDay === 0 || weekDay === 6;
+                const isSelected = selectedHolidayDates.includes(date);
+                let className = 'calendar-day';
+                if (isSelected) className += ' selected';
+                else if (isWeekend) className += ' weekend';
+
+                html += `<div class="${className}" data-date="${date}" onclick="toggleHolidayDate('${date}')"><span style="font-size: 1.2em;">${day}</span><span style="font-size: 0.7em;">${weekDays[weekDay]}</span></div>`;
+            }
+            container.innerHTML = html;
+        }
+
+        function toggleHolidayDate(date) {
+            const index = selectedHolidayDates.indexOf(date);
+            if (index > -1) selectedHolidayDates.splice(index, 1);
+            else selectedHolidayDates.push(date);
+            renderCalendar('holidaysGrid');
+        }
+
+        function addHoliday() {
+            const name = document.getElementById('holidayName').value.trim();
+            const type = document.getElementById('holidayType').value;
+            if (!name) { alert('请输入假期名称'); return; }
+            if (selectedHolidayDates.length === 0) { alert('请选择至少一个日期'); return; }
+
+            config.holidays.push({ name, type, dates: [...selectedHolidayDates] });
+            document.getElementById('holidayName').value = '';
+            selectedHolidayDates = [];
+            renderCalendar('holidaysGrid');
+            renderHolidaysList();
+        }
+
+        function renderHolidaysList() {
+            const container = document.getElementById('holidaysList');
+            if (config.holidays.length === 0) {
+                container.innerHTML = '<p style="color: #6c757d;">暂无假期设置</p>';
+                return;
+            }
+            container.innerHTML = config.holidays.map((h, i) => `
+                <div style="background: white; padding: 15px; border-radius: 8px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
+                    <div><strong>${h.name}</strong><br><small>${h.dates.join(', ')} - ${h.type === 'rest' ? '优先休息' : h.type === 'work' ? '必须上班' : '正常排班'}</small></div>
+                    <button class="btn btn-danger btn-sm" onclick="removeHoliday(${i})">删除</button>
+                </div>
+            `).join('');
+        }
+
+        function removeHoliday(index) {
+            config.holidays.splice(index, 1);
+            renderHolidaysList();
+        }
+
+        // 生成排班
+        function generateSchedule() {
+            config.year = parseInt(document.getElementById('year').value);
+            config.month = parseInt(document.getElementById('month').value);
+            config.attendanceRate = parseInt(document.getElementById('attendanceRate').value);
+
+            if (config.groups.length === 0 || config.groups.every(g => g.staff.length === 0)) {
+                alert('请至少添加一个组别和人员');
+                return;
+            }
+
+            document.getElementById('loading').classList.add('active');
+
+            setTimeout(() => {
+                try {
+                    currentSchedule = runSchedulingAlgorithm();
+                    renderScheduleResult();
+                    document.getElementById('loading').classList.remove('active');
+                    document.getElementById('resultModal').classList.add('active');
+                } catch (error) {
+                    document.getElementById('loading').classList.remove('active');
+                    alert('排班失败：' + error.message);
+                }
+            }, 100);
+        }
+
+        function runSchedulingAlgorithm() {
+            const year = config.year, month = config.month;
+            const daysInMonth = new Date(year, month, 0).getDate();
+            const allStaff = getAllStaff();
+            const schedule = {};
+            const shiftCount = {};
+
+            allStaff.forEach(staff => {
+                schedule[staff] = {};
+                shiftCount[staff] = {};
+                config.shifts.forEach(s => shiftCount[staff][s.name] = 0);
+                shiftCount[staff]['休'] = 0;
+            });
+
+            // 解析所有人员的偏好
+            const parsedPreferences = {};
+            allStaff.forEach(staff => {
+                parsedPreferences[staff] = parsePreferenceForScheduling(staff, config.staffPreferences[staff] || '', year, month, daysInMonth);
+            });
+
+            // 按组排班
+            config.groups.forEach(group => {
+                const groupStaff = group.staff;
+                const workDaysTarget = Math.floor(daysInMonth * config.attendanceRate / 100);
+                const restDaysTarget = daysInMonth - workDaysTarget;
+
+                groupStaff.forEach(staff => {
+                    const prefs = parsedPreferences[staff];
+                    let restDays = 0;
+
+                    // 优先处理固定休息日
+                    prefs.fixedRestDays.forEach(date => {
+                        if (restDays < restDaysTarget) {
+                            schedule[staff][date] = '休';
+                            restDays++;
+                        }
+                    });
+
+                    // 处理周末休息偏好
+                    if (prefs.weekendRest) {
+                        for (let day = 1; day <= daysInMonth && restDays < restDaysTarget; day++) {
+                            const date = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                            const weekDay = new Date(date).getDay();
+                            if ((weekDay === 0 || weekDay === 6) && !schedule[staff][date]) {
+                                schedule[staff][date] = '休';
+                                restDays++;
+                            }
+                        }
+                    }
+
+                    // 处理周期性休息
+                    prefs.weeklyRestDays.forEach(weekDay => {
+                        for (let day = 1; day <= daysInMonth && restDays < restDaysTarget; day++) {
+                            const date = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                            if (new Date(date).getDay() === weekDay && !schedule[staff][date]) {
+                                schedule[staff][date] = '休';
+                                restDays++;
+                            }
+                        }
+                    });
+
+                    // 补充剩余休息日
+                    for (let day = 1; day <= daysInMonth && restDays < restDaysTarget; day++) {
+                        const date = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                        if (!schedule[staff][date]) {
+                            schedule[staff][date] = '休';
+                            restDays++;
+                        }
+                    }
+                });
+
+                // 分配班次
+                for (let day = 1; day <= daysInMonth; day++) {
+                    const date = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                    const workingStaff = groupStaff.filter(s => schedule[s][date] !== '休');
+                    const prefs = parsedPreferences;
+
+                    const assignment = assignShiftsForDay(workingStaff, date, schedule, shiftCount, prefs);
+                    Object.entries(assignment).forEach(([staff, shift]) => {
+                        schedule[staff][date] = shift;
+                        shiftCount[staff][shift]++;
+                    });
+                }
+            });
+
+            return { schedule, year, month, daysInMonth };
+        }
+
+        function parsePreferenceForScheduling(staff, text, year, month, daysInMonth) {
+            const prefs = {
+                fixedRestDays: [],
+                fixedWorkDays: [],
+                weeklyRestDays: [],
+                weekendRest: false,
+                weekendWork: false,
+                shiftLikes: [],
+                shiftDislikes: [],
+                maxConsecutiveWork: 7,
+                minConsecutiveRest: 1,
+                restWith: [],
+                avoidAnnualLeave: false
+            };
+
+            const lowerText = text.toLowerCase();
+
+            // 解析固定日期
+            const dateMatch = text.match(/(\d{1,2})月(\d{1,2})日/g);
+            if (dateMatch) {
+                dateMatch.forEach(match => {
+                    const [m, d] = match.match(/(\d{1,2})/g);
+                    const date = `${year}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+                    if (lowerText.includes('休息') || lowerText.includes('休')) {
+                        prefs.fixedRestDays.push(date);
+                    } else if (lowerText.includes('上班')) {
+                        prefs.fixedWorkDays.push(date);
+                    }
+                });
+            }
+
+            // 解析周几休息
+            const weekDays = {'一': 1, '二': 2, '三': 3, '四': 4, '五': 5, '六': 6, '日': 0, '天': 0};
+            for (let [day, num] of Object.entries(weekDays)) {
+                if (lowerText.includes(`周${day}`) || lowerText.includes(`星期${day}`)) {
+                    if (lowerText.includes('休息') || lowerText.includes('休')) {
+                        prefs.weeklyRestDays.push(num);
+                    }
+                }
+            }
+
+            // 解析周末偏好
+            if (lowerText.includes('周末')) {
+                if (lowerText.includes('不排') || lowerText.includes('休息')) prefs.weekendRest = true;
+                if (lowerText.includes('上班')) prefs.weekendWork = true;
+            }
+
+            // 解析班次偏好
+            const shiftKeywords = { '早7': ['早7', '早七'], '早班': ['早班'], '中班': ['中班'], '晚班': ['晚班'] };
+            for (let [shift, keywords] of Object.entries(shiftKeywords)) {
+                for (let keyword of keywords) {
+                    if (lowerText.includes(keyword)) {
+                        if (lowerText.includes('喜欢') || lowerText.includes('爱')) prefs.shiftLikes.push(shift);
+                        if (lowerText.includes('不喜欢') || lowerText.includes('讨厌')) prefs.shiftDislikes.push(shift);
+                    }
+                }
+            }
+
+            // 解析连续工作限制
+            const workMatch = text.match(/连续工作(\d+)/) || text.match(/最多.*工作(\d+)/);
+            if (workMatch) prefs.maxConsecutiveWork = parseInt(workMatch[1]);
+
+            // 解析连休
+            const restMatch = text.match(/连休(\d+)/);
+            if (restMatch) prefs.minConsecutiveRest = parseInt(restMatch[1]);
+
+            // 解析年假偏好
+            if (lowerText.includes('年假') && (lowerText.includes('少') || lowerText.includes('不'))) {
+                prefs.avoidAnnualLeave = true;
+            }
+
+            // 解析同事协调
+            const allStaff = getAllStaff();
+            for (let other of allStaff) {
+                if (other !== staff && lowerText.includes(other) && lowerText.includes('一起')) {
+                    prefs.restWith.push(other);
+                }
+            }
+
+            return prefs;
+        }
+
+        function assignShiftsForDay(staff, date, schedule, shiftCount, prefs) {
+            const assignment = {};
+            const availableShifts = staff.length <= 4 ?
+                [['早7'], ['早7', '晚班'], ['早7', '中班', '晚班'], config.shifts.map(s => s.name)][staff.length - 1] || config.shifts.map(s => s.name)
+                : config.shifts.map(s => s.name);
+
+            const flexibleStaff = [...staff];
+
+            flexibleStaff.forEach(s => {
+                const staffPrefs = prefs[s];
+                let bestShift = availableShifts[0];
+                let bestScore = -Infinity;
+
+                availableShifts.forEach(shift => {
+                    let score = 0;
+
+                    // 班次均衡
+                    score -= shiftCount[s][shift] * 1.8;
+
+                    // 个人偏好
+                    if (staffPrefs.shiftLikes.includes(shift)) score += 10;
+                    if (staffPrefs.shiftDislikes.includes(shift)) score -= 15;
+
+                    // 连续班次奖励
+                    const prevDate = new Date(date);
+                    prevDate.setDate(prevDate.getDate() - 1);
+                    const prevShift = schedule[s][prevDate.toISOString().split('T')[0]];
+                    if (prevShift === shift) score += 5;
+
+                    // 衔接约束
+                    if (prevShift === '晚班') {
+                        if (shift === '早7') score -= 50;
+                        if (shift === '早班') score -= 35;
+                    }
+
+                    if (score > bestScore) {
+                        bestScore = score;
+                        bestShift = shift;
+                    }
+                });
+
+                assignment[s] = bestShift;
+            });
+
+            return assignment;
+        }
+
+        function renderScheduleResult() {
+            const container = document.getElementById('scheduleResult');
+            const { schedule, year, month, daysInMonth } = currentSchedule;
+
+            let html = '<table class="schedule-table"><thead><tr><th>组别</th><th>姓名</th>';
+            for (let day = 1; day <= daysInMonth; day++) {
+                const date = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                const weekDay = new Date(date).getDay();
+                const weekText = ['日', '一', '二', '三', '四', '五', '六'][weekDay];
+                const isWeekend = weekDay === 0 || weekDay === 6;
+                const isHoliday = config.holidays.some(h => h.dates.includes(date));
+                let style = isHoliday ? 'background: #ffc107; color: #000;' : isWeekend ? 'background: #ff6b6b;' : '';
+                html += `<th style="${style}">${day}<br><small>${weekText}</small></th>`;
+            }
+            html += '</tr></thead><tbody>';
+
+            config.groups.forEach(group => {
+                group.staff.forEach(staff => {
+                    html += `<tr><td><strong>${group.name}</strong></td><td>${staff}</td>`;
+                    for (let day = 1; day <= daysInMonth; day++) {
+                        const date = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                        const shift = schedule[staff][date] || '休';
+                        html += `<td class="shift-${shift}">${shift}</td>`;
+                    }
+                    html += '</tr>';
+                });
+            });
+
+            html += '</tbody></table>';
+            container.innerHTML = html;
+        }
+
+        function closeModal() { document.getElementById('resultModal').classList.remove('active'); }
+
+        function exportToExcel() {
+            if (!currentSchedule) return;
+            const { schedule, year, month, daysInMonth } = currentSchedule;
+            const data = [];
+
+            const headerRow = ['组别', '姓名'];
+            for (let day = 1; day <= daysInMonth; day++) {
+                const date = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                const weekDay = new Date(date).getDay();
+                headerRow.push(`${day}日(${'日一二三四五六'[weekDay]})`);
+            }
+            data.push(headerRow);
+
+            config.groups.forEach(group => {
+                group.staff.forEach(staff => {
+                    const row = [group.name, staff];
+                    for (let day = 1; day <= daysInMonth; day++) {
+                        const date = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                        row.push(schedule[staff][date] || '休');
+                    }
+                    data.push(row);
+                });
+            });
+
+            const ws = XLSX.utils.aoa_to_sheet(data);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, `${year}年${month}月排班表`);
+            XLSX.writeFile(wb, `${year}年${month}月排班表.xlsx`);
+        }
+
+        function saveConfig() {
+            const blob = new Blob([JSON.stringify(config, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `排班配置_${config.year}年${config.month}月.json`;
+            a.click();
+        }
+
+        function loadConfig() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.json';
+            input.onchange = function(e) {
+                const file = e.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        try {
+                            config = JSON.parse(e.target.result);
+                            document.getElementById('year').value = config.year;
+                            document.getElementById('month').value = config.month;
+                            document.getElementById('attendanceRate').value = config.attendanceRate;
+                            renderShiftConfig();
+                            renderGroupList();
+                            currentGroup = null;
+                            renderStaffList();
+                            renderSmartPreferences();
+                            initCalendar();
+                            renderHolidaysList();
+                            alert('配置加载成功！');
+                        } catch (err) { alert('配置文件格式错误'); }
+                    };
+                    reader.readAsText(file);
+                }
+            };
+            input.click();
+        }
+
+        document.getElementById('year').addEventListener('change', initCalendar);
+        document.getElementById('month').addEventListener('change', initCalendar);
+    </script>
+</body>
+</html>
